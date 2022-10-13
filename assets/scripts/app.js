@@ -12,7 +12,39 @@ class Product {
   }
 }
 
-class shoppingCart {
+class ElementAttribute {
+  constructor(attrName, attrValue) {
+    this.name = attrName;
+    this.value = attrValue;
+  }
+}
+
+class Component {
+  constructor(renderHookId, shouldRender = true) {
+    this.hookId = renderHookId;
+    if (shouldRender) {
+      this.render();
+    }
+  }
+
+  render() {}
+
+  createRootElement(tag, CssClasses, attributes) {
+    const rootElement = document.createElement(tag);
+    if (CssClasses) {
+      rootElement.className = CssClasses;
+    }
+    if (attributes && attributes.length > 0) {
+      for (const attr of attributes) {
+        rootElement.setAttribute(attr.name, attr.value);
+      }
+    }
+    document.getElementById(this.hookId).append(rootElement);
+    return rootElement;
+  }
+}
+
+class shoppingCart extends Component {
   items = [];
 
   set cartItems(value) {
@@ -23,7 +55,11 @@ class shoppingCart {
   get totalAmount() {
     const sum = this.items.reduce((prevValue, curItem) => prevValue + curItem.price, 0);
     return sum;
-  } 
+  }
+
+  constructor(renderHookId) {
+    super(renderHookId);
+  }
 
   addProduct(product) {
     const updatedItems = [...this.items];
@@ -32,21 +68,20 @@ class shoppingCart {
   }
 
   render() {
-    const cartEl = document.createElement('section');
+    const cartEl = this.createRootElement('section', 'cart');
     cartEl.innerHTML = `
       <h2>Total: \$${0}</h2>
       <button>Order Now!</button>
     `;
-    cartEl.className = 'cart';
     this.totalOutput = cartEl.querySelector('h2');
-
-    return cartEl;
   }
 }
 
-class ProductItem {
-  constructor(product) {
+class ProductItem extends Component {
+  constructor(product, renderHookId) {
+    super(renderHookId, false);
     this.product = product;
+    this.render();
   }
 
   addToCart() {
@@ -54,8 +89,7 @@ class ProductItem {
   }
 
   render() {
-    const prodEl = document.createElement('li');
-      prodEl.className = 'product-item';
+    const prodEl = this.createRootElement('li', 'product-item');
       prodEl.innerHTML = `
         <div>
           <img src="${this.product.imageUrl}" alt="${this.product.title}" >
@@ -69,52 +103,55 @@ class ProductItem {
       `;
       const addCartButton = prodEl.querySelector('button');
       addCartButton.addEventListener('click', this.addToCart.bind(this));
-      return prodEl;
   }
 }
 
-class ProductList {
-  products = [
-    new Product(
-      'A Pillow',
-      'https://m.media-amazon.com/images/I/71ZH83cL42L._AC_SL1500_.jpg',
-      'A soft pillow!',
-      19.99
-    ),
-    new Product(
-      'A Carpet',
-      'https://www.bhg.com/thmb/BGwWSh04-E7JzT2MKaZgBoIaYWo=/500x0/filters:no_upscale():max_bytes(150000):strip_icc():gifv()/early-prime-day-area-rug-deals-tout-2000-4d132c1070344cee9ab04b4e765f95a0.jpg',
-      'A carpet which you might like.',
-      89.99,
-    )
-  ];
+class ProductList extends Component {
+  constructor(renderHookId) {
+    super(renderHookId);
+    this.fetchProducts();
+  }
 
-  constructor() {}
+  fetchProducts() {
+    this.products = [
+      new Product(
+        'A Pillow',
+        'https://m.media-amazon.com/images/I/71ZH83cL42L._AC_SL1500_.jpg',
+        'A soft pillow!',
+        19.99
+      ),
+      new Product(
+        'A Carpet',
+        'https://www.bhg.com/thmb/BGwWSh04-E7JzT2MKaZgBoIaYWo=/500x0/filters:no_upscale():max_bytes(150000):strip_icc():gifv()/early-prime-day-area-rug-deals-tout-2000-4d132c1070344cee9ab04b4e765f95a0.jpg',
+        'A carpet which you might like.',
+        89.99,
+      )
+    ];
+    this.renderProducts();
+  }
+
+  renderProducts() {
+    for (const prod of this.products) {
+      new ProductItem(prod, 'prod-list');
+    }
+  }
 
   render() {
-    const prodList = document.createElement('ul');
-    prodList.className = 'product-list';
-    for (const prod of this.products) {
-      const productItem = new ProductItem(prod);
-      const prodEl= productItem.render();
-      prodList.append(prodEl);
+    this.createRootElement('ul', 'product-list', [new ElementAttribute('id', 'prod-list')]);
+    if (this.products && this.products.length > 0) {
+      this.renderProducts();
     }
-    return prodList;
   }
 }
 
 class Shop {
+  constructor() {
+    this.render();
+  }
+
   render() {
-    const renderHook = document.getElementById('app');
-
-
-    this.cart = new shoppingCart();
-    const cartEl = this.cart.render();
-    const productList = new ProductList();
-    const prodListEl = productList.render();
-
-    renderHook.append(cartEl);
-    renderHook.append(prodListEl);
+    this.cart = new shoppingCart('app'); //constructor needs hookId
+    new ProductList('app');
   } 
 }
 
@@ -123,7 +160,6 @@ class App {
 
   static init() {
     const shop = new Shop();
-    shop.render();
     this.cart = shop.cart;
   }
 
